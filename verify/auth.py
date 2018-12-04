@@ -8,7 +8,12 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from verify.db import get_db
 
+from twilio.rest import Client
+
 bp = Blueprint('auth', __name__, url_prefix='/auth')
+
+# Initialize Twilio client
+client = Client()
 
 
 def login_required(view):
@@ -21,6 +26,41 @@ def login_required(view):
         return view(**kwargs)
 
     return wrapped_view
+
+
+def start_verification(to, channel='sms'):
+    if channel not in ('sms', 'voice'):
+        channel = 'sms'
+
+    service = app.config.get("VERIFICATION_SID")
+
+    verification = client.verify \
+        .services(service) \
+        .verifications \
+        .create(to=to, channel=channel)
+    
+    return verification.sid
+
+
+def check_verification(phone, code):
+    service = app.config.get("VERIFICATION_SID")
+    
+    try:
+        verification_check = client.verify \
+            .services(service) \
+            .verification_checks \
+            .create(to=phone, code=code)
+
+        if verification_check.valid:
+            db = get_db()
+            db.execute(
+                'UPDATE user SET verified = 1 WHERE phone_number = ?', 
+                (phone,)
+            )
+            db.commit()
+            flash('Your phone number has been verified! Please login to continue.')
+    except Exception as e:
+        flash("Error validating code: {}".format(e))
 
 
 @bp.before_app_request
@@ -47,11 +87,16 @@ def register():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
+        phone = request.form['full_phone']
+        channel = request.form['channel']
+        
         db = get_db()
         error = None
 
         if not username:
             error = 'Username is required.'
+        elif not phone:
+            error = 'Phone number is required'
         elif not password:
             error = 'Password is required.'
         elif db.execute(
@@ -60,18 +105,33 @@ def register():
             error = 'User {0} is already registered.'.format(username)
 
         if error is None:
-            # the name is available, store it in the database and go to
-            # the login page
-            db.execute(
-                'INSERT INTO user (username, password) VALUES (?, ?)',
-                (username, generate_password_hash(password))
-            )
-            db.commit()
-            return redirect(url_for('auth.login'))
+            session['phone'] = phone
+            vsid = start_verification(phone, channel)
+
+            if vsid is not None:
+                # the verification was sent to the user and the username is valid
+                # redirect to verification check
+                db.execute(
+                    'INSERT INTO user (username, password, phone_number) VALUES (?, ?, ?)',
+                    (username, generate_password_hash(password), phone)
+                )
+                db.commit()
+                return redirect(url_for('auth.verify'))
 
         flash(error)
-
     return render_template('auth/register.html')
+
+
+@bp.route('/verify', methods=('GET', 'POST'))
+def verify():
+    """Verify a user on registration with their phone number"""
+    if request.method == 'POST':
+        phone = session.get('phone')
+        code = request.form['code']
+        check_verification(phone, code)
+        return redirect(url_for('auth.login'))
+
+    return render_template('auth/verify.html')
 
 
 @bp.route('/login', methods=('GET', 'POST'))

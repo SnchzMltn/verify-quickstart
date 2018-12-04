@@ -18,6 +18,9 @@ def create_app(test_config=None):
     try:
         # Secret key
         app.secret_key = os.environ['SECRET_KEY']
+
+        # Twilio Verify Service
+        app.config['VERIFICATION_SID'] = os.environ['VERIFICATION_SID']
     except KeyError:
         raise Exception(
             'Missing environment variables. See .env.example for details')
