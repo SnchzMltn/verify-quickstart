@@ -1,6 +1,0 @@
-include LICENSE
-include verify/schema.sql
-graft verify/static
-graft verify/templates
-graft tests
-global-exclude *.pyc

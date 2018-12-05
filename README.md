@@ -14,12 +14,7 @@ Or on Windows cmd:
 
 Install Verify:
 
-    pip install -e .
-
-Or if you are using the master branch, install Flask from source before installing Verify:
-
-    pip install -e ../..
-    pip install -e .
+    pip install -r requirements.txt
 
 ## Run
 

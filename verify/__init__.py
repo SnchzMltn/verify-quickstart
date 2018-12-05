@@ -1,38 +1,35 @@
 import os
 
-from flask import Flask
+from flask import Flask, render_template
+
+from dotenv import load_dotenv, find_dotenv
 
 
 def create_app(test_config=None):
     """Create and configure an instance of the Flask application."""
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(
-        # a default secret that should be overridden by instance config
-        SECRET_KEY='dev',
         # store the database in the instance folder
         DATABASE=os.path.join(app.instance_path, 'verify.sqlite'),
     )
 
-    if test_config is None:
-        # load the instance config, if it exists, when not testing
-        app.config.from_pyfile('config.py', silent=True)
-    else:
-        # load the test config if passed in
-        app.config.update(test_config)
+    load_dotenv(find_dotenv())
 
-    # ensure the instance folder exists
     try:
-        os.makedirs(app.instance_path)
-    except OSError:
-        pass
-
-    @app.route('/hello')
-    def hello():
-        return 'Hello, World!'
+        # Secret key
+        app.secret_key = os.environ['SECRET_KEY']
+    except KeyError:
+        raise Exception('Missing environment variables. See .env.example for details')
 
     # register the database commands
     from verify import db
     db.init_app(app)
+
+    @app.route('/users')
+    def list_users():
+        database = db.get_db()
+        users = database.execute('SELECT * FROM user').fetchall()
+        return render_template('users.html', users=users)
 
     # apply the blueprints to the app
     from verify import auth, blog
