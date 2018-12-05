@@ -21,6 +21,12 @@ def create_app(test_config=None):
     except KeyError:
         raise Exception('Missing environment variables. See .env.example for details')
 
+    # ensure the instance folder exists
+    try:
+        os.makedirs(app.instance_path)
+    except OSError:
+        pass
+
     # register the database commands
     from verify import db
     db.init_app(app)
