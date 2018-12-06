@@ -92,10 +92,10 @@ def login():
             error = 'Incorrect password.'
 
         if error is None:
-            # store the user id in a new session and return to the index
+            # store the user id in a new session and return to secret content
             session.clear()
             session['user_id'] = user['id']
-            return redirect(url_for('index'))
+            return redirect(url_for('secret'))
 
         flash(error)
 
@@ -106,4 +106,5 @@ def login():
 def logout():
     """Clear the current session, including the stored user id."""
     session.clear()
-    return redirect(url_for('index'))
+    flash("You have been logged out.")
+    return redirect(url_for('auth.login'))

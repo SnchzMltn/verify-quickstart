@@ -19,7 +19,8 @@ def create_app(test_config=None):
         # Secret key
         app.secret_key = os.environ['SECRET_KEY']
     except KeyError:
-        raise Exception('Missing environment variables. See .env.example for details')
+        raise Exception(
+            'Missing environment variables. See .env.example for details')
 
     # ensure the instance folder exists
     try:
@@ -38,14 +39,11 @@ def create_app(test_config=None):
         return render_template('users.html', users=users)
 
     # apply the blueprints to the app
-    from verify import auth, blog
+    from verify import auth, secret
     app.register_blueprint(auth.bp)
-    app.register_blueprint(blog.bp)
+    app.register_blueprint(secret.bp)
 
-    # make url_for('index') == url_for('blog.index')
-    # in another app, you might define a separate main index here with
-    # app.route, while giving the blog blueprint a url_prefix, but for
-    # the tutorial the blog will be the main index
-    app.add_url_rule('/', endpoint='index')
+    # make url_for('index') == secret content
+    app.add_url_rule('/', endpoint='secret')
 
     return app
